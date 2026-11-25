@@ -771,6 +771,19 @@ void HTram::insertValue(datatype value, int dest_pe) {
     HTramMessage *destMsg = msgBuffers[destNode];
     if (agg == WW)
       destMsg = msgBuffers[dest_pe];
+    // Count the item in, as insert() does: every WPs/WW send site counts the
+    // items it sends back out, and countBuffers() (htramQuiesce) adds these
+    // counters to the buffered items. Without this they went negative by the
+    // number of items sent, and htramQuiesce never saw a zero count.
+#ifdef BUCKETS_BY_DEST
+    if (agg == WPs)
+      updates_in_tram[destNode]++;
+    else if (agg == WW)
+      updates_in_tram[dest_pe]++;
+#else
+    if (agg == WPs)
+      updates_in_tram_count++;
+#endif
 
     if (agg == WsP) {
       itemT itm;
@@ -1033,6 +1046,8 @@ void HTram::tflush(bool idleflush) {
           // destination. Every other send site decrements, and omitting it
           // here makes the counter drift upward permanently.
           updates_in_tram[i] -= destMsg->next;
+#else
+          updates_in_tram_count -= destMsg->next;
 #endif
           trim(destMsg);
           HTRAM_TIMED_SEND(nodeGrpProxy[i].receive(destMsg);)
