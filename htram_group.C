@@ -1531,8 +1531,13 @@ void HTram::flushIndex(int dest) {
 
 void HTram::insert(const datatype &item, int dest_pe, long long key) {
   // Before the insert: if it fills and ships the buffer, the reset that
-  // follows covers this item too.
-  const int d = (agg == WW) ? dest_pe : dest_pe / CkNodeSize(0);
+  // follows covers this item too. The index comes from nodeOf[] when it is
+  // there, as in insert() and sendItemPrioDeferredDest(): this runs once per
+  // item, and CkNodeSize() is a call into the runtime library under
+  // Reconverse (CmiMyNodeSize()), followed by a division.
+  const int d = (agg == WW) ? dest_pe
+                : nodeOf    ? nodeOf[dest_pe]
+                            : dest_pe / CkNodeSize(0);
   if (key < min_key_[d])
     min_key_[d] = key;
   insert(item, dest_pe);
