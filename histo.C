@@ -17,6 +17,8 @@ int l_buffer_size = 1024;
 bool enable_buffer_flushing = false;
 int l_flush_timer = 500;
 bool return_item = false;//true;
+int agg_mode = -1;            // -1: the library's default
+int end_with_quiesce = 0;
 
 #ifdef TRAM_SMP
 #if GROUPBY
@@ -51,7 +53,7 @@ public:
     int64_t printhelp = 0;
     int opt;
 
-    while( (opt = getopt(args->argc, args->argv, "hen:T:S:t:")) != -1 ) {
+    while( (opt = getopt(args->argc, args->argv, "hen:T:S:t:m:q")) != -1 ) {
       switch(opt) {
       case 'h': printhelp = 1; break;
       case 'e': enable_buffer_flushing = true; break;
@@ -59,6 +61,8 @@ public:
       case 'T': sscanf(optarg,"%d" ,&lnum_counts);  break;
       case 'S': sscanf(optarg, "%d", &l_buffer_size); break;
       case 't': sscanf(optarg, "%d", &l_flush_timer); break;
+      case 'm': sscanf(optarg, "%d", &agg_mode); break;
+      case 'q': end_with_quiesce = 1; break;
       default:  break;
       }
     }
@@ -70,6 +74,10 @@ public:
     if (enable_buffer_flushing) {
       CkPrintf("TRAM Timed Flush enabled with flushes every %f us.\n", static_cast<double>(l_flush_timer)/1000);
     }
+    if (agg_mode >= 0)
+      CkPrintf("Aggregation mode                 (-m)= %d\n", agg_mode);
+    if (end_with_quiesce)
+      CkPrintf("Update phase ends with htramQuiesce (-q)\n");
 
     driverProxy = thishandle;
 //    updater_array = CProxy_Updater::ckNew();
@@ -100,7 +108,10 @@ public:
       starttime = CkWallTimer();
       CkCallback endCb(CkIndex_TestDriver::startVerificationPhase(), thisProxy);
       updater_array.generateUpdates();
-      CkStartQD(endCb);
+      if (end_with_quiesce)
+        tram_proxy[0].htramQuiesce(endCb);
+      else
+        CkStartQD(endCb);
     }
   }
   int phase = 0;
@@ -205,6 +216,8 @@ public:
   void preGenerateUpdates() {
     tram = tram_proxy.ckLocalBranch();
     tram->set_func_ptr(Updater::insertDataCaller, this);
+    if (agg_mode >= 0)
+      tram->setAggregationMode(agg_mode);
 //    tram->reset_stats(buf_type, buf_size, agtype);
 #ifdef RETURN_ITEMLIST
     tram->set_func_ptr_retarr(Updater::insertDataArrCaller, this);

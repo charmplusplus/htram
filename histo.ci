@@ -6,6 +6,10 @@ mainmodule histo {
   // Number of chares per PE
   readonly int            l_num_ups;
   readonly int            lnum_counts;
+  // Aggregation mode (-m; -1 = the library default) and whether the
+  // update phase ends with htramQuiesce (-q) instead of CkStartQD
+  readonly int            agg_mode;
+  readonly int            end_with_quiesce;
 
   mainchare TestDriver {
     entry TestDriver (CkArgMsg *args);
